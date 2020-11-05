@@ -31,6 +31,7 @@ namespace Graphics
         static string lastGamemode;
         static bool allowBuild;
         static string buildType;
+        static int sinceLastClick;
         static void Main(string[] args)
         {
             try
@@ -76,8 +77,18 @@ namespace Graphics
                 Raylib.EndDrawing();
             }
         }
+        static void MenuInstrucions()
+        {
+            Raylib.DrawRectangle(windowLength / 8 - 30, windowHeight - 170, 1580, 220, Color.GRAY);
+            Raylib.DrawText("Welcome to draw thingy", windowLength / 3, 20, 60, Color.BLACK);
+            Raylib.DrawText("You can create a new level or open an existing one by clicking a button", windowLength / 8, windowHeight - 155, 40, Color.BLACK);
+            Raylib.DrawText("Green obstacles can be placed down in both create mode and play mode", windowLength / 8, windowHeight - 120, 40, Color.BLACK);
+            Raylib.DrawText("Red obstacles kills the player while in play mode, Orange is the goal", windowLength / 8, windowHeight - 85, 40, Color.BLACK);
+            Raylib.DrawText("Once you're done with your level you can play it by saving it (IMPORTANT) and then accesing it from the levels menu", windowLength / 8, windowHeight - 42, 26, Color.BLACK);
+        }
         static void Menu()
         {
+            sinceLastClick++;
             if (gameState == "levelSelect")
             {
                 if (Raylib.IsKeyDown(KeyboardKey.KEY_UP)) yOffset -= 4;
@@ -94,6 +105,7 @@ namespace Graphics
             {
                 Raylib.DrawText("Use the down and up arrows to navigate", windowLength / 3 - 100, 5, 40, Color.DARKGRAY);
             }
+            if (gameState == "menu") MenuInstrucions();
             for (int i = 0; i < buttons.Count; i++)
             {
                 Obstacle button = buttons[i];
@@ -145,8 +157,9 @@ namespace Graphics
                     {
                         Raylib.DrawText("You have no saved levels", (int)(button.x + 20), (int)button.y + ((int)button.height / 8) * 6 - yOffset, 22, Color.DARKGRAY);
                     }
-                    if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_LEFT_BUTTON))
+                    if (Raylib.IsMouseButtonPressed(MouseButton.MOUSE_LEFT_BUTTON) && sinceLastClick > 3)
                     {
+                        sinceLastClick = 0;
                         if (button.type == "new")
                         {
                             allowBuild = true;
@@ -215,7 +228,8 @@ namespace Graphics
             else if (!allowBuild) Raylib.DrawText("Building off", 10, 10, 50, Color.DARKGRAY);
             if (gameState == "create")
             {
-                Raylib.DrawText("Block type: " + buildType + "(g) to change", windowLength / 3 - 20, 10, 40, Color.DARKGRAY);
+                Raylib.DrawText("Press (b) to toggle", 10, 60, 20, Color.DARKGRAY);
+                Raylib.DrawText("Block type: " + buildType + " press (g) to change", windowLength / 3 - 20, 10, 40, Color.DARKGRAY);
             }
             else if (gameState == "game" || gameState == "goal")
             {
@@ -241,7 +255,7 @@ namespace Graphics
             {
                 buttons.Add(new Obstacle(windowLength / 2 - 250, 130, 500, 140, "new"));
                 buttons.Add(new Obstacle(windowLength / 2 - 250, 350, 500, 140, "levels"));
-                // buttons.Add(new Obstacle(windowLength / 2 - 250, 570, 500, 140, "exit"));
+                buttons.Add(new Obstacle(windowLength / 2 - 250, 570, 500, 140, "exit"));
             }
             else if (gameState == "pauseScreen")
             {
@@ -288,14 +302,18 @@ namespace Graphics
                 }
                 else if (obstacle.type == "editable")
                 {
-                    Raylib.DrawRectangle((int)-x + (int)obstacle.x, (int)obstacle.y, (int)obstacle.width, (int)obstacle.height, Color.DARKGREEN);
+                    Raylib.DrawRectangle((int)-x + (int)obstacle.x, (int)obstacle.y, (int)obstacle.width, (int)obstacle.height, Color.GREEN);
                 }
                 else if (obstacle.type == "goal")
                 {
                     Raylib.DrawRectangle((int)-x + (int)obstacle.x, (int)obstacle.y, (int)obstacle.width, (int)obstacle.height, Color.ORANGE);
                 }
+                else if (obstacle.type == "danger")
+                {
+                    Raylib.DrawRectangle((int)-x + (int)obstacle.x, (int)obstacle.y, (int)obstacle.width, (int)obstacle.height, Color.RED);
+                }
             }
-            Raylib.DrawRectangle((int)p1.x, (int)p1.y, (int)p1.width, (int)p1.height, Color.RED);
+            Raylib.DrawRectangle((int)p1.x, (int)p1.y, (int)p1.width, (int)p1.height, Color.GOLD);
             if (drawing) DrawObstacle();
         }
         static void CheckKeyPresses()
@@ -315,7 +333,8 @@ namespace Graphics
             if (Raylib.IsKeyPressed(KeyboardKey.KEY_G) && gameState == "create")
             {
                 if (buildType == "editable") buildType = "static";
-                else if (buildType == "static") buildType = "goal";
+                else if (buildType == "static") buildType = "danger";
+                else if (buildType == "danger") buildType = "goal";
                 else if (buildType == "goal") buildType = "editable";
             }
             if (Raylib.IsKeyDown(KeyboardKey.KEY_S) && !Raylib.IsKeyDown(KeyboardKey.KEY_W) && gameState == "create") yVelocity -= (float)0.6;
@@ -356,7 +375,7 @@ namespace Graphics
             if (Raylib.IsMouseButtonReleased(MouseButton.MOUSE_LEFT_BUTTON))
             {
                 drawing = false;
-                if ((!isOverlapping || gameState == "create") && !(yP2 < 4 || xP2 < 4))
+                if ((!isOverlapping || gameState == "create") && !(yP2 < 5 || xP2 < 5))
                 {
                     obstacles.Add(new Obstacle((int)xP1, (int)yP1, (int)xP2, (int)yP2, buildType));
                 }
@@ -422,7 +441,7 @@ namespace Graphics
                 Obstacle obstacle = obstacles[i];
                 Rectangle r2 = new Rectangle(-x + obstacle.x, obstacle.y, obstacle.width, obstacle.height);
                 bool isOverlapping = Raylib.CheckCollisionRecs(p1, r2);
-                if (isOverlapping && obstacle.type != "goal")
+                if (isOverlapping && obstacle.type != "goal" && obstacle.type != "danger")
                 {
                     if (x + p1.x <= x + r2.x && p1.y + p1.height + yVelocity > r2.y && p1.y < r2.y + r2.height - yVelocity)
                     {
@@ -451,6 +470,10 @@ namespace Graphics
                 if (isOverlapping && obstacle.type == "goal")
                 {
                     gameState = "goal";
+                }
+                if (isOverlapping && obstacle.type == "danger")
+                {
+                    RestartGameMode();
                 }
                 if (!(p1.y + p1.height == r2.y && p1.x + p1.width > r2.x && p1.x < r2.x + r2.width) && !jumping)
                 {
